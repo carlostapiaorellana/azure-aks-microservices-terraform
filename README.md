@@ -20,9 +20,11 @@ El código automatiza el aprovisionamiento de los siguientes servicios:
 
 ## Despliegue
 
-1. Inicializar el entorno, descargar módulos y proveedores:
+Pasos para aplicar y destruir la Infraestructura completa
    ```bash
    terraform init
    terraforn validate
    terraform plan
    terraform apply --auto-approve
+   ---
+   terraform destroy --auto-approve
