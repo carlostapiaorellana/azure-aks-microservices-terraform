@@ -1,0 +1,117 @@
+name: 'CI/CD - IT Support System'
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      ARM_SUBSCRIPTION_ID: "e690edad-0257-4dec-b4c9-08e163433edb"
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      DB_SERVER_NAME: "sql-server-tickets-carlos"
+      DB_NAME: "SupportDB"
+      DB_USER: "sqladmin"
+      TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # 1. Terraform
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.5.0
+
+      - name: Terraform Init & Apply
+        run: |
+          terraform init
+          terraform apply -auto-approve
+
+      # 2. Imagen de Aplicación
+      - name: Login to ACR
+        uses: azure/docker-login@v1
+        with:
+          login-server: acrcarlos69lm.azurecr.io
+          username: ${{ secrets.AZURE_CLIENT_ID }}
+          password: ${{ secrets.AZURE_CLIENT_SECRET }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build & Push App
+        uses: docker/build-push-action@v5
+        with:
+          context: ./app
+          push: true
+          tags: acrcarlos69lm.azurecr.io/support-app:${{ github.sha }}
+
+      # 3. Kubernetes
+      - name: Get AKS Context
+        run: |
+          az aks get-credentials --resource-group rg-k8s-lab --name aks-lab --overwrite-existing
+
+      - name: Kubernetes Deploy
+        run: |
+          sed -i 's|acrcarlos69lm.azurecr.io/support-app:latest|acrcarlos69lm.azurecr.io/support-app:${{ github.sha }}|g' k8s/deployment.yaml
+          sed -i 's|TuPasswordSeguro123|${{ secrets.DB_PASSWORD }}|g' k8s/deployment.yaml
+          kubectl apply -f k8s/
+          kubectl rollout status deployment/support-app --timeout=180s
+
+      # 4. APIM Update
+      - name: Sync NGINX IP with APIM
+        run: |
+          NGINX_IP=""
+          for i in {1..20}; do
+            NGINX_IP=$(kubectl get svc -n ingress-basic ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+            if [ -n "$NGINX_IP" ]; then break; fi
+            sleep 15
+          done
+          if [ -z "$NGINX_IP" ]; then exit 1; fi
+
+          az apim api update \
+            --resource-group rg-k8s-lab \
+            --service-name apimcarlos69lmV12 \
+            --api-id tickets-api \
+            --service-url "http://$NGINX_IP"
+
+      # 5. CREACIÓN DE TABLA (Al final y con instalación de sqlcmd)
+      - name: Install sqlcmd and Create Table
+        run: |
+          # Importar llaves y repositorio de Microsoft
+          curl https://packages.microsoft.com/keys/microsoft.asc | sudo tee /etc/apt/trusted.gpg.d/microsoft.asc
+          curl https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list
+          sudo apt-get update
+          sudo ACCEPT_EULA=Y apt-get install -y mssql-tools18 unixodbc-dev
+          
+          # Agregar al PATH para que el shell lo encuentre
+          echo 'export PATH="$PATH:/opt/mssql-tools18/bin"' >> ~/.bashrc
+          export PATH="$PATH:/opt/mssql-tools18/bin"
+          
+          echo "Conectando a SQL Server..."
+          # Usamos el parámetro -C (Trust Server Certificate) para evitar errores de SSL en el runner
+          sqlcmd -S "${{ env.DB_SERVER_NAME }}.database.windows.net" \
+                 -d "${{ env.DB_NAME }}" \
+                 -U "${{ env.DB_USER }}" \
+                 -P "${{ secrets.DB_PASSWORD }}" \
+                 -C \
+                 -Q "IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Tickets' AND xtype='U') 
+                     CREATE TABLE Tickets (
+                        id INT PRIMARY KEY IDENTITY(1,1),
+                        usuario NVARCHAR(100) NOT NULL,
+                        asunto NVARCHAR(255) NOT NULL,
+                        prioridad NVARCHAR(20),
+                        estado NVARCHAR(20) DEFAULT 'Abierto',
+                        fecha_creacion DATETIME DEFAULT GETDATE()
+                     );"
+          
+          echo "Despliegue y Base de Datos completados por Carlos Tapia."

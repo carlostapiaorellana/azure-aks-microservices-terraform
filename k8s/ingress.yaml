@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: support-ingress
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    # Redirige el tráfico correctamente al backend
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    # Ayuda con las rutas relativas de CSS/JS
+    nginx.ingress.kubernetes.io/add-base-url: "true"
+    # Opcional: Aumentar el tiempo de espera si la DB tarda en responder
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: support-service
+            port:
+              number: 80

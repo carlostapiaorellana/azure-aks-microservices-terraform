@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: support-app
+  labels:
+    app: support-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: support-app
+  template:
+    metadata:
+      labels:
+        app: support-app
+    spec:
+      containers:
+      - name: support-app-container
+        image: acrcarlos69lm.azurecr.io/support-app:latest # Se actualizará via GH Actions
+        ports:
+        - containerPort: 3000
+        env:
+        - name: DB_SERVER
+          value: "sql-server-tickets-carlos.database.windows.net"
+        - name: DB_NAME
+          value: "SupportDB"
+        - name: DB_USER
+          value: "sqladmin"
+        - name: DB_PASSWORD
+          value: "TuPasswordSeguro123" # En un entorno real, usa Kubernetes Secrets
+        - name: PORT
+          value: "3000"

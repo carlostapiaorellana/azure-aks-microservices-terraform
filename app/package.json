@@ -1,0 +1,14 @@
+{
+  "name": "it-support-system",
+  "version": "1.0.0",
+  "description": "Sistema de Tickets para Lab 21",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "mssql": "^10.0.1",
+    "body-parser": "^1.20.2"
+  }
+}

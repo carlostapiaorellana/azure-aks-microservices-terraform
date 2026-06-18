@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- CRÍTICO: Esto le dice al navegador que todo cuelga de /tickets/ -->
+    <base href="/tickets/">
+    <title>IT Support System Lab 21</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Estilo rápido por si el CSS tarda un poco en propagar */
+        body { background-color: #0d1117; color: white; font-family: sans-serif; padding: 20px; }
+        input, select, button { padding: 8px; margin: 5px; border-radius: 4px; border: 1px solid #30363d; }
+        button { background-color: #238636; color: white; cursor: pointer; border: none; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #30363d; padding: 12px; text-align: left; }
+        th { background-color: #161b22; }
+        .prio-Alta { color: #ff7b72; font-weight: bold; }
+        .prio-Media { color: #d29922; }
+        .prio-Baja { color: #7ee787; }
+    </style>
+</head>
+<body>
+    <h1>IT Support System</h1>
+    
+    <section>
+        <h2>Abrir Nuevo Ticket</h2>
+        <form id="ticketForm">
+            <input type="text" id="usuario" placeholder="Nombre de usuario" required>
+            <input type="text" id="asunto" placeholder="Asunto del problema" required>
+            <select id="prioridad">
+                <option value="Baja">Baja</option>
+                <option value="Media" selected>Media</option>
+                <option value="Alta">Alta</option>
+            </select>
+            <button type="submit">Crear Ticket</button>
+        </form>
+    </section>
+
+    <section>
+        <h2>Tickets Activos</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Usuario</th>
+                    <th>Asunto</th>
+                    <th>Prioridad</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody id="ticketTableBody">
+                <!-- Los datos de SQL aparecerán aquí -->
+            </tbody>
+        </table>
+    </section>
+
+    <script src="script.js"></script>
+</body>
+</html>
